@@ -94,11 +94,20 @@ class DataFixture(object):
     """
 
     def _field_fixture_template(self, field_class):
-        return '%s_config' % (field_class.__name__.lower(),)
+        return self._field_fixture_name(field_class.__name__.lower())
+
+    def _field_fixture_name(self, field_class_name):
+        return '%s_config' % (field_class_name,)
 
     def _field_fixture_factory(self, field_class):
         try:
-            fixture = self._field_fixture_template(field_class)
+            from django_dynamic_fixture.global_settings import DDF_FIELD_OVERRIDES
+            override = DDF_FIELD_OVERRIDES.get(
+                field_class.__name__, None)
+            if override:
+                fixture = self._field_fixture_name(override.lower())
+            else:
+                fixture = self._field_fixture_template(field_class)
             getattr(self, fixture)
             return fixture
         except AttributeError:

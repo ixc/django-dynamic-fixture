@@ -57,6 +57,11 @@ try:
 except Exception as e:
     six.reraise(DDFImproperlyConfigured, DDFImproperlyConfigured("DDF_IGNORE_FIELDS (%s) must be a list of strings" % settings.DDF_IGNORE_FIELDS), sys.exc_info()[2])
 
+# DDF_FIELD_OVERRIDES default = {}
+try:
+    DDF_FIELD_OVERRIDES = settings.DDF_FIELD_OVERRIDES if hasattr(settings, 'DDF_FIELD_OVERRIDES') else {}
+except Exception as e:
+    six.reraise(DDFImproperlyConfigured, DDFImproperlyConfigured("DDF_FIELD_OVERRIDES (%s) must be a dictionary" % settings.DDF_FIELD_OVERRIDES), sys.exc_info()[2])
 
 # DDF_NUMBER_OF_LAPS default = 1
 try:
