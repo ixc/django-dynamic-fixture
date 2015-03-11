@@ -30,6 +30,7 @@ class UniqueRandomDataFixture(DataFixture):
     )
 
     def __init__(self):
+        super(UniqueRandomDataFixture, self).__init__()
         self.filler = AutoDataFiller()
 
     def get_counter(self, field, key):
@@ -42,7 +43,7 @@ class UniqueRandomDataFixture(DataFixture):
         counter = six.text_type(self.get_counter(field, key))
         length = n or self.DEFAULT_LENGTH
         result = counter
-        result += u''.join(
+        result += six.text_type('').join(
             random.choice(string.ascii_letters)
             for _ in xrange(length - len(counter))
         )
@@ -141,10 +142,10 @@ class UniqueRandomDataFixture(DataFixture):
 
     # FORMATTED STRINGS
     def emailfield_config(self, field, key):
-        return u'a%s@dynamicfixture.com' % self.random_string(field, key)
+        return six.text_type('a%s@dynamicfixture.com') % self.random_string(field, key)
 
     def urlfield_config(self, field, key):
-        return u'http://dynamicfixture%s.com' % self.random_string(field, key)
+        return six.text_type('http://dynamicfixture%s.com') % self.random_string(field, key)
 
     def ipaddressfield_config(self, field, key):
         MAX_IP = 2 ** 32 - 1
@@ -154,7 +155,7 @@ class UniqueRandomDataFixture(DataFixture):
         return six.text_type(socket.inet_ntoa(struct.pack('!L', integer)))
 
     def xmlfield_config(self, field, key):
-        return u'<a>%s</a>' % self.random_string(field, key)
+        return six.text_type('<a>%s</a>') % self.random_string(field, key)
 
     # FILES
     def filepathfield_config(self, field, key):
@@ -165,3 +166,15 @@ class UniqueRandomDataFixture(DataFixture):
 
     def imagefield_config(self, field, key):
         return self.random_string(field, key)
+
+    # BINARY
+    def binaryfield_config(self, field, key):
+        return six.b(self.charfield_config(field, key))
+
+    # GIS/GeoDjango
+    def pointfield_config(self, field, key):
+        from django.contrib.gis.geos import Point
+        x = random.randint(-180, 180)
+        y = random.randint(-90, 90)
+        WGS84_SRID = 4326
+        return Point(x=x, y=y, srid=WGS84_SRID)

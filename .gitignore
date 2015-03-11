@@ -1,3 +1,4 @@
+.DS_Store
 .idea/
 dist/
 build/
@@ -14,19 +15,23 @@ cover/
 *.coverage
 *.pyc
 *.pyo
+*.log
 .noseids
 *.sqlite
 virtualenv*
 
 django_dynamic_fixture.egg-info
 env/
+envpypy
 env26
 env27
 env32
 env33
+env34
 env2.6
 env2.7
 env3.2
 env3.3
+env3.4
 .tox
 test_:memory:

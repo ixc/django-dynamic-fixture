@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from distutils.version import StrictVersion
+import django
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -35,6 +37,8 @@ class ModelWithStrings(models.Model):
 
 
 class ModelWithBooleans(models.Model):
+    # https://docs.djangoproject.com/en/1.6/ref/models/fields/#booleanfield
+    # Django 1.6 changed the default value of BooleanField from False to None
     boolean = models.BooleanField()
     nullboolean = models.NullBooleanField()
 
@@ -50,6 +54,10 @@ class ModelWithDateTimes(models.Model):
     class Meta:
         verbose_name = 'DateTimes'
 
+
+if StrictVersion(django.get_version()) > StrictVersion('1.6'):
+    class ModelWithBinary(models.Model):
+        binary = models.BinaryField()
 
 class ModelWithFieldsWithCustomValidation(models.Model):
     email = models.EmailField(null=True, unique=True)
@@ -202,6 +210,10 @@ class CustomDjangoField(models.IntegerField):
     pass
 
 
+class CustomDjangoField2(models.IntegerField):
+    pass
+
+
 class CustomDjangoFieldMixin(object):
     pass
 
@@ -320,3 +332,35 @@ class ModelForSignals(models.Model):
 class ModelForSignals2(models.Model):
     class Meta:
         verbose_name = 'Signals 2'
+
+
+class ModelForFieldPlugins(models.Model):
+    # aaa = CustomDjangoField(null=False) # defined in settings.py
+    # bbb = models.IntegerField(null=False)
+    custom_field_custom_fixture = CustomDjangoField(null=False) # defined in settings.py
+    custom_field_custom_fixture2 = CustomDjangoField2(null=False) # defined in settings.py
+
+
+class ModelWithCommonNames(models.Model):
+    instance = models.IntegerField(null=False)
+    field = models.IntegerField(null=False)
+
+
+# jsonfield requires Django 1.4+
+if StrictVersion(django.get_version()) >= StrictVersion('1.4'):
+    try:
+        from jsonfield import JSONField
+        from jsonfield import JSONCharField
+        class ModelForPlugins1(models.Model):
+            json_field1 = JSONCharField(max_length=10)
+            json_field2 = JSONField()
+    except ImportError:
+        pass
+
+
+try:
+    from json_field import JSONField as JSONField2
+    class ModelForPlugins2(models.Model):
+        json_field1 = JSONField2()
+except ImportError:
+    pass

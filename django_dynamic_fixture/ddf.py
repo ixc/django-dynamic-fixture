@@ -92,6 +92,8 @@ class DataFixture(object):
     :field: Field object.
     :key: string that represents a unique name for a Field, considering app, model and field names.
     """
+    def __init__(self):
+        self.plugins = {}
 
     def _field_fixture_template(self, field_class):
         return self._field_fixture_name(field_class.__name__.lower())
@@ -121,6 +123,12 @@ class DataFixture(object):
 
     def generate_data(self, field):
         "Get a unique and valid data for the field."
+        field_fullname = field.__module__ + "." + field.__class__.__name__
+        fixture = self.plugins.get(field_fullname, {})
+        if type(fixture) == dict:
+            fixture = fixture.get('ddf_fixture', None)
+        if fixture and callable(fixture):
+            return fixture()
         config = self._field_fixture_factory(field.__class__)
         is_supported_field = config != None
         if is_supported_field:
@@ -144,7 +152,7 @@ class Copier(object):
         self.expression = expression
 
     def __str__(self):
-        return u"C('%s')" % self.expression
+        return "C('%s')" % self.expression
 
     def immediate_field_name(self, instance):
         model_class = instance.__class__
@@ -245,7 +253,7 @@ class DynamicFixture(object):
         self.fields_to_disable_auto_now_add = []
 
     def __str__(self):
-        return u'F(%s)' % (u', '.join(u'%s=%s' % (key, value) for key, value in self.kwargs.items()))
+        return 'F(%s)' % (', '.join(six.text_type('%s=%s') % (key, value) for key, value in self.kwargs.items()))
 
     def __eq__(self, that):
         return self.kwargs == that.kwargs
@@ -350,35 +358,35 @@ class DynamicFixture(object):
             data = self.data_fixture.generate_data(field)
         return data
 
-    def set_data_for_a_field(self, model_class, instance, field, persist_dependencies=True, **kwargs):
-        if field.name in kwargs:
-            config = kwargs[field.name]
+    def set_data_for_a_field(self, model_class, __instance, __field, persist_dependencies=True, **kwargs):
+        if __field.name in kwargs:
+            config = kwargs[__field.name]
             try:
-                data = self._process_field_with_customized_fixture(instance, field, config, persist_dependencies)
+                data = self._process_field_with_customized_fixture(__instance, __field, config, persist_dependencies)
             except PendingField:
                 return # ignore this field for a while.
             except Exception as e:
-                six.reraise(InvalidConfigurationError, InvalidConfigurationError(get_unique_field_name(field), e), sys.exc_info()[2])
+                six.reraise(InvalidConfigurationError, InvalidConfigurationError(get_unique_field_name(__field), e), sys.exc_info()[2])
         else:
-            data = self._process_field_with_default_fixture(field, model_class, persist_dependencies)
+            data = self._process_field_with_default_fixture(__field, model_class, persist_dependencies)
 
-        if is_file_field(field) and data:
+        if is_file_field(__field) and data:
             django_file = data
             if isinstance(django_file, File):
-                setattr(instance, field.name, data.name) # set the attribute
+                setattr(__instance, __field.name, data.name) # set the attribute
                 if django_file.file.mode != 'rb':
                     django_file.file.close() # this file may be open in another mode, for example, in a+b
                     opened_file = open(django_file.file.name, 'rb') # to save the file it must be open in rb mode
                     django_file.file = opened_file # we update the reference to the rb mode opened file
-                getattr(instance, field.name).save(django_file.name, django_file) # save the file into the file storage system
+                getattr(__instance, __field.name).save(django_file.name, django_file) # save the file into the file storage system
                 django_file.close()
             else: # string (saving just a name in the file, without saving the file to the storage file system
-                setattr(instance, field.name, data) # Model.field = data
+                setattr(__instance, __field.name, data) # Model.field = data
         else:
             if self.debug_mode:
-                LOGGER.debug('%s.%s = %s' % (get_unique_model_name(model_class), field.name, data))
-            setattr(instance, field.name, data) # Model.field = data
-        self.fields_processed.append(field.name)
+                LOGGER.debug('%s.%s = %s' % (get_unique_model_name(model_class), __field.name, data))
+            setattr(__instance, __field.name, data) # Model.field = data
+        self.fields_processed.append(__field.name)
 
     def _validate_kwargs(self, model_class, kwargs):
         "validate all kwargs match Model.fields."
@@ -448,7 +456,7 @@ class DynamicFixture(object):
             raise InvalidModelError(get_unique_model_name(model_class))
         for field in get_fields_from_model(model_class):
             if is_key_field(field) and 'id' not in configuration: continue
-            if field.name in self.ignore_fields: continue
+            if field.name in self.ignore_fields and field.name not in self.kwargs: continue
             self.set_data_for_a_field(model_class, instance, field, persist_dependencies=persist_dependencies, **configuration)
         number_of_pending_fields = len(self.pending_fields)
         # For Copier fixtures: dealing with pending fields that need to receive values of another fields.
@@ -459,7 +467,7 @@ class DynamicFixture(object):
             self.set_data_for_a_field(model_class, instance, field, persist_dependencies=persist_dependencies, **configuration)
             i += 1
             if i > 2 * number_of_pending_fields: # dealing with infinite loop too.
-                raise InvalidConfigurationError(get_unique_field_name(field), u'Cyclic dependency of Copiers.')
+                raise InvalidConfigurationError(get_unique_field_name(field), 'Cyclic dependency of Copiers.')
         if self.debug_mode:
             LOGGER.debug('<<< [%s] Instance created.' % get_unique_model_name(model_class))
         return instance

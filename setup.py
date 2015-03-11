@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 
 # http://guide.python-distribute.org/quickstart.html
 # python setup.py sdist
+# Create a .pypirc file in ~ dir (cp .pypirc ~)
 # python setup.py register
 # python setup.py sdist upload
 # pip install django-dynamic-fixture
@@ -13,7 +14,7 @@ from setuptools import setup, find_packages
 # Update version and save
 # Go to 'files' link and upload the file
 
-VERSION = '1.7.0'
+VERSION = '1.8.1'
 
 tests_require = [
     'nose==1.1.2',
@@ -24,6 +25,7 @@ tests_require = [
     'django-nose==1.2',
     'tox==1.7.0',
     'flake8==2.1.0',
+    'jsonfield',
 ]
 
 install_requires = [
@@ -43,6 +45,8 @@ setup(name='django-dynamic-fixture',
           'Topic :: Software Development',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3.3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: Implementation :: PyPy',
       ],
 
       version=VERSION,

@@ -42,6 +42,7 @@ class AutoDataFiller(object):
 class SequentialDataFixture(DataFixture):
 
     def __init__(self):
+        super(SequentialDataFixture, self).__init__()
         self.filler = AutoDataFiller()
 
     def get_value(self, field, key):
@@ -115,10 +116,10 @@ class SequentialDataFixture(DataFixture):
 
     # FORMATTED STRINGS
     def emailfield_config(self, field, key):
-        return u'a%s@dynamicfixture.com' % self.get_value(field, key)
+        return six.text_type('a%s@dynamicfixture.com') % self.get_value(field, key)
 
     def urlfield_config(self, field, key):
-        return u'http://dynamicfixture%s.com' % self.get_value(field, key)
+        return six.text_type('http://dynamicfixture%s.com') % self.get_value(field, key)
 
     def ipaddressfield_config(self, field, key):
         # TODO: better workaround (this suppose ip field is not unique)
@@ -127,10 +128,10 @@ class SequentialDataFixture(DataFixture):
         b = '1'
         c = '1'
         d = data % 256
-        return u'%s.%s.%s.%s' % (a, b, c, str(d))
+        return six.text_type('%s.%s.%s.%s') % (a, b, c, str(d))
 
     def xmlfield_config(self, field, key):
-        return u'<a>%s</a>' % self.get_value(field, key)
+        return six.text_type('<a>%s</a>') % self.get_value(field, key)
 
     # FILES
     def filepathfield_config(self, field, key):
@@ -141,6 +142,18 @@ class SequentialDataFixture(DataFixture):
 
     def imagefield_config(self, field, key):
         return six.text_type(self.get_value(field, key))
+
+    # BINARY
+    def binaryfield_config(self, field, key):
+        return six.b(self.charfield_config(field, key))
+
+    # GIS/GeoDjango
+    def pointfield_config(self, field, key):
+        from django.contrib.gis.geos import Point
+        val = self.get_value(field, key)
+        rest = val % 90
+        val = rest if (val/90 % 2) else -rest
+        return Point(val, val)
 
 
 class GlobalSequentialDataFixture(SequentialDataFixture):

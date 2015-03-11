@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from distutils.version import StrictVersion
 
+import django
 from django.test import TestCase
 
 from django_dynamic_fixture.models_test import *
@@ -86,6 +88,18 @@ class NewFullFillAttributesWithAutoDataTest(DDFTestCase):
         except ImportError:
             pass
 
+    def test_new_fill_binary_fields_with_basic_data(self):
+        if StrictVersion(django.get_version()) > StrictVersion('1.6'):
+            value = b'\x00\x46\xFE'
+            instance = self.ddf.new(ModelWithBinary, binary=value)
+            self.assertEqual(bytes(instance.binary), bytes(value))
+
+            instance = self.ddf.get(ModelWithBinary)
+            if six.PY3:
+                self.assertTrue(isinstance(instance.binary, six.binary_type), msg=type(instance.binary))
+            else:
+                self.assertTrue(isinstance(instance.binary, (six.binary_type, str, unicode)), msg=type(instance.binary))
+
 
 class NewFullFillAttributesWithDefaultDataTest(DDFTestCase):
     def test_fill_field_with_default_data(self):
@@ -131,6 +145,62 @@ class NewFullFillAttributesWithCustomDataTest(DDFTestCase):
         self.assertRaises(BadDataError, self.ddf.get, ModelWithNumbers, integer=50000)
 
 
+class NewFullFillAttributesUsingPluginsTest(DDFTestCase):
+    def test_custom_field_not_registered_must_raise_an_unsupported_field_exception(self):
+        self.assertRaises(UnsupportedFieldError, self.ddf.new, ModelWithUnsupportedField)
+
+    def test_new_fill_field_with_data_generated_by_plugins_with_dict(self):
+        data_fixture.plugins = django.conf.settings.DDF_FIELD_FIXTURES
+        try:
+            instance = self.ddf.get(ModelForFieldPlugins)
+            # self.assertEquals(123456789, instance.aaa)
+            # self.assertEquals(123456789, instance.bbb)
+            self.assertEquals(123456789, instance.custom_field_custom_fixture)
+        finally:
+            data_fixture.plugins = {}
+
+    def test_new_fill_field_with_data_generated_by_plugins_with_direct_fuction(self):
+        data_fixture.plugins = django.conf.settings.DDF_FIELD_FIXTURES
+        try:
+            instance = self.ddf.get(ModelForFieldPlugins)
+            self.assertEquals(987654321, instance.custom_field_custom_fixture2)
+        finally:
+            data_fixture.plugins = {}
+
+    # Real Custom Field
+    def test_json_field_not_registered_must_raise_an_unsupported_field_exception(self):
+        # jsonfield requires Django 1.4+
+        if StrictVersion(django.get_version()) >= StrictVersion('1.4'):
+            try:
+                from jsonfield import JSONCharField, JSONField
+                instance = self.ddf.new(ModelForPlugins1)
+                self.assertEquals(True, False, msg='JSON fields must not be supported by default')
+            except ImportError:
+                pass
+            except UnsupportedFieldError as e:
+                pass
+
+    def test_new_fill_json_field_with_data_generated_by_plugins(self):
+        # jsonfield requires Django 1.4+
+        if StrictVersion(django.get_version()) >= StrictVersion('1.4'):
+            try:
+                import json
+                from jsonfield import JSONCharField, JSONField
+                data_fixture.plugins = django.conf.settings.DDF_FIELD_FIXTURES
+                try:
+                    instance = self.ddf.new(ModelForPlugins1)
+                    self.assertTrue(isinstance(instance.json_field1, str), msg=type(instance.json_field1))
+                    self.assertTrue(isinstance(instance.json_field2, str), msg=type(instance.json_field2))
+                    self.assertTrue(isinstance(json.loads(instance.json_field1), dict))
+                    self.assertTrue(isinstance(json.loads(instance.json_field2), list))
+                    self.assertEquals(instance.json_field1, '{"some random value": "c"}')
+                    self.assertEquals(instance.json_field2, '[1, 2, 3]')
+                finally:
+                    data_fixture.plugins = {}
+            except ImportError:
+                pass
+
+
 class NewIgnoringNullableFieldsTest(DDFTestCase):
     def test_new_do_not_fill_nullable_fields_if_we_do_not_want_to(self):
         self.ddf = DynamicFixture(data_fixture, fill_nullable_fields=False)
@@ -163,6 +233,11 @@ class NewIgnoreFieldsInIgnoreListTest(DDFTestCase):
         self.ddf = DynamicFixture(data_fixture, ignore_fields=['not_required', 'nullable'])
         instance = self.ddf.new(ModelForIgnoreList)
         self.assertNotEquals(None, instance.different_reference.nullable)
+
+    def test_ignore_fields_are_not_ignored_if_explicitely_given(self):
+        self.ddf = DynamicFixture(data_fixture, not_required=3, ignore_fields=['not_required', 'nullable'])
+        instance = self.ddf.new(ModelForIgnoreList)
+        self.assertEqual(3, instance.not_required)
 
 
 class NewAlsoCreatesRelatedObjectsTest(DDFTestCase):
@@ -703,8 +778,13 @@ class ExceptionsLayoutMessagesTest(DDFTestCase):
             self.ddf.get(ModelForIgnoreList)
             self.fail()
         except BadDataError as e:
-            self.assertEquals("""('django_dynamic_fixture.models_test.ModelForIgnoreList', IntegrityError('django_dynamic_fixture_modelforignorelist.required may not be NULL',))""",
-                              str(e))
+            model_msg = 'django_dynamic_fixture.models_test.ModelForIgnoreList'
+            error_msg = 'django_dynamic_fixture_modelforignorelist.required may not be NULL'
+            error_msg2 = 'NOT NULL constraint failed: django_dynamic_fixture_modelforignorelist.required'
+            template1 = "('%s', IntegrityError('%s',))" % (model_msg, error_msg)
+            template2 = "('%s', IntegrityError('%s',))" % (model_msg, error_msg2) # py34
+            template3 = "('%s', IntegrityError(u'%s',))" % (model_msg, error_msg) # pypy
+            self.assertEquals(str(e) in [template1, template2, template3], True, msg=str(e))
 
     def test_InvalidConfigurationError(self):
         try:
@@ -744,3 +824,33 @@ class SanityTest(DDFTestCase):
     def test_create_lots_of_models_to_verify_data_unicity_errors(self):
         for i in range(1000):
             self.ddf.get(ModelWithNumbers)
+
+
+class AvoidNameCollisionTest(DDFTestCase):
+    def test_avoid_common_name_instance(self):
+        self.ddf = DynamicFixture(data_fixture, fill_nullable_fields=False)
+        instance = self.ddf.new(ModelWithCommonNames)
+        self.assertNotEquals(None, instance.instance)
+
+        instance = self.ddf.new(ModelWithCommonNames, instance=3)
+        self.assertEquals(3, instance.instance)
+
+        instance = self.ddf.get(ModelWithCommonNames)
+        self.assertNotEquals(None, instance.instance)
+
+        instance = self.ddf.get(ModelWithCommonNames, instance=4)
+        self.assertEquals(4, instance.instance)
+
+    def test_avoid_common_name_field(self):
+        self.ddf = DynamicFixture(data_fixture, fill_nullable_fields=False)
+        instance = self.ddf.new(ModelWithCommonNames)
+        self.assertNotEquals(None, instance.field)
+
+        instance = self.ddf.new(ModelWithCommonNames, field=5)
+        self.assertEquals(5, instance.field)
+
+        instance = self.ddf.get(ModelWithCommonNames)
+        self.assertNotEquals(None, instance.field)
+
+        instance = self.ddf.get(ModelWithCommonNames, field=6)
+        self.assertEquals(6, instance.field)

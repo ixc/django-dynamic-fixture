@@ -15,7 +15,7 @@ from django_dynamic_fixture.ddf import DataFixture
 
 class RandomDataFixture(DataFixture):
     def random_string(self, n):
-        return u''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(n))
+        return six.text_type('').join(random.choice(string.ascii_uppercase + string.digits) for _ in range(n))
 
     # NUMBERS
     def integerfield_config(self, field, key, start=1, end=10 ** 6):
@@ -82,20 +82,20 @@ class RandomDataFixture(DataFixture):
 
     # FORMATTED STRINGS
     def emailfield_config(self, field, key):
-        return u'a%s@dynamicfixture.com' % self.random_string(10)
+        return six.text_type('a%s@dynamicfixture.com') % self.random_string(10)
 
     def urlfield_config(self, field, key):
-        return u'http://dynamicfixture%s.com' % self.random_string(10)
+        return six.text_type('http://dynamicfixture%s.com') % self.random_string(10)
 
     def ipaddressfield_config(self, field, key):
         a = random.randint(1, 255)
         b = random.randint(1, 255)
         c = random.randint(1, 255)
         d = random.randint(1, 255)
-        return u'%s.%s.%s.%s' % (a, b, c, d)
+        return six.text_type('%s.%s.%s.%s') % (a, b, c, d)
 
     def xmlfield_config(self, field, key):
-        return u'<a>%s</a>' % self.random_string(5)
+        return six.text_type('<a>%s</a>') % self.random_string(5)
 
     # FILES
     def filepathfield_config(self, field, key):
@@ -107,3 +107,14 @@ class RandomDataFixture(DataFixture):
     def imagefield_config(self, field, key):
         return self.random_string(10)
 
+    # BINARY
+    def binaryfield_config(self, field, key):
+        return six.b(self.charfield_config(field, key))
+
+    # GIS/GeoDjango
+    def pointfield_config(self, field, key):
+        from django.contrib.gis.geos import Point
+        x = random.randint(-180, 180)
+        y = random.randint(-90, 90)
+        WGS84_SRID = 4326
+        return Point(x=x, y=y, srid=WGS84_SRID)
