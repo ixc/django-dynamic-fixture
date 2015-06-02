@@ -14,17 +14,17 @@ from setuptools import setup, find_packages
 # Update version and save
 # Go to 'files' link and upload the file
 
-VERSION = '1.8.1'
+VERSION = '1.8.4'
 
 tests_require = [
-    'nose==1.1.2',
-    'django-nose==0.1.3',
+    'nose>=1.3.6',
+    'django-nose>=1.4',
     'coverage==3.7.1',
-    'django-coverage==1.2.4',
-    'nose==1.3.0',
-    'django-nose==1.2',
-    'tox==1.7.0',
-    'flake8==2.1.0',
+    'django-coverage>=1.2',
+    'tox>=2.0',
+    'flake8>=2.4',
+    'pyflakes',
+    'pylint',
     'jsonfield',
 ]
 

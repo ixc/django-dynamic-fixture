@@ -2,15 +2,19 @@
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import threading
+
 import six
-
-from django_dynamic_fixture.ddf import DataFixture
-from django_dynamic_fixture.django_helper import field_is_unique
-
 try:
     from django.utils.timezone import now
 except ImportError:
     now = datetime.now
+try:
+    from django.contrib.gis.geos import *
+except ImportError:
+    pass # Django < 1.7
+
+from django_dynamic_fixture.fixture_algorithms.default_fixture import BaseDataFixture, GeoDjangoDataFixture
+from django_dynamic_fixture.django_helper import field_is_unique
 
 
 class AutoDataFiller(object):
@@ -39,7 +43,7 @@ class AutoDataFiller(object):
         return self.__data_controller_map[key]
 
 
-class SequentialDataFixture(DataFixture):
+class SequentialDataFixture(BaseDataFixture, GeoDjangoDataFixture):
 
     def __init__(self):
         super(SequentialDataFixture, self).__init__()
@@ -142,18 +146,6 @@ class SequentialDataFixture(DataFixture):
 
     def imagefield_config(self, field, key):
         return six.text_type(self.get_value(field, key))
-
-    # BINARY
-    def binaryfield_config(self, field, key):
-        return six.b(self.charfield_config(field, key))
-
-    # GIS/GeoDjango
-    def pointfield_config(self, field, key):
-        from django.contrib.gis.geos import Point
-        val = self.get_value(field, key)
-        rest = val % 90
-        val = rest if (val/90 % 2) else -rest
-        return Point(val, val)
 
 
 class GlobalSequentialDataFixture(SequentialDataFixture):

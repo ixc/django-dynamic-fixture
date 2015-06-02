@@ -7,21 +7,23 @@ import socket
 import string
 import struct
 from warnings import warn
+
 import six
-
-from django_dynamic_fixture.ddf import DataFixture
-from django_dynamic_fixture.fixture_algorithms.sequential_fixture import \
-    AutoDataFiller
 from six.moves import xrange
-
 try:
     from django.utils.timezone import now
 except ImportError:
     now = datetime.now
+try:
+    from django.contrib.gis.geos import *
+except ImportError:
+    pass # Django < 1.7
+
+from django_dynamic_fixture.fixture_algorithms.sequential_fixture import AutoDataFiller
+from django_dynamic_fixture.fixture_algorithms.default_fixture import BaseDataFixture, GeoDjangoDataFixture
 
 
-class UniqueRandomDataFixture(DataFixture):
-
+class UniqueRandomDataFixture(BaseDataFixture, GeoDjangoDataFixture):
     DEFAULT_LENGTH = 10
     OBJECT_COUNT = 512
     WARNING_MESSAGE_TMPL = (
@@ -166,15 +168,3 @@ class UniqueRandomDataFixture(DataFixture):
 
     def imagefield_config(self, field, key):
         return self.random_string(field, key)
-
-    # BINARY
-    def binaryfield_config(self, field, key):
-        return six.b(self.charfield_config(field, key))
-
-    # GIS/GeoDjango
-    def pointfield_config(self, field, key):
-        from django.contrib.gis.geos import Point
-        x = random.randint(-180, 180)
-        y = random.randint(-90, 90)
-        WGS84_SRID = 4326
-        return Point(x=x, y=y, srid=WGS84_SRID)

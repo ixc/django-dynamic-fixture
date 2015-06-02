@@ -1,16 +1,26 @@
 # -*- coding: utf-8 -*-
-from distutils.version import StrictVersion
+from datetime import datetime, date
+from decimal import Decimal
+import uuid
 
 import django
+from django.conf import settings
+try:
+    from django.contrib.gis.geos import *
+except ImportError:
+    pass # Django < 1.7
+
+try:
+    from django.contrib.gis.db import models as geomodel
+except ImportError:
+    pass # Django < 1.7
 from django.test import TestCase
 
 from django_dynamic_fixture.models_test import *
 from django_dynamic_fixture.ddf import *
 from django_dynamic_fixture.ddf import _PRE_SAVE, _POST_SAVE
 from django_dynamic_fixture.fixture_algorithms.sequential_fixture import SequentialDataFixture
-
-from datetime import datetime, date
-from decimal import Decimal
+from django_dynamic_fixture.django_helper import django_greater_than
 
 
 data_fixture = SequentialDataFixture()
@@ -89,7 +99,7 @@ class NewFullFillAttributesWithAutoDataTest(DDFTestCase):
             pass
 
     def test_new_fill_binary_fields_with_basic_data(self):
-        if StrictVersion(django.get_version()) > StrictVersion('1.6'):
+        if django_greater_than('1.6'):
             value = b'\x00\x46\xFE'
             instance = self.ddf.new(ModelWithBinary, binary=value)
             self.assertEqual(bytes(instance.binary), bytes(value))
@@ -170,7 +180,7 @@ class NewFullFillAttributesUsingPluginsTest(DDFTestCase):
     # Real Custom Field
     def test_json_field_not_registered_must_raise_an_unsupported_field_exception(self):
         # jsonfield requires Django 1.4+
-        if StrictVersion(django.get_version()) >= StrictVersion('1.4'):
+        if django_greater_than('1.4'):
             try:
                 from jsonfield import JSONCharField, JSONField
                 instance = self.ddf.new(ModelForPlugins1)
@@ -182,7 +192,7 @@ class NewFullFillAttributesUsingPluginsTest(DDFTestCase):
 
     def test_new_fill_json_field_with_data_generated_by_plugins(self):
         # jsonfield requires Django 1.4+
-        if StrictVersion(django.get_version()) >= StrictVersion('1.4'):
+        if django_greater_than('1.4'):
             try:
                 import json
                 from jsonfield import JSONCharField, JSONField
@@ -251,7 +261,7 @@ class NewAlsoCreatesRelatedObjectsTest(DDFTestCase):
 
     def test_new_deal_with_default_values(self):
         instance = self.ddf.new(ModelWithRelationships)
-        self.assertTrue(isinstance(instance.foreignkey_with_default, ModelRelated))
+        self.assertTrue(isinstance(instance.foreignkey_with_default, ModelRelated), msg=str(type(instance.foreignkey_with_default)))
 
 #        TODO
 #    def test_new_fill_genericrelations_fields(self):
@@ -318,8 +328,9 @@ class ManyToManyRelationshipTest(DDFTestCase):
         b2 = self.ddf.get(ModelRelated, integer=1001)
         instance = self.ddf.get(ModelWithRelationships, manytomany=[b1, b2])
         self.assertEquals(2, instance.manytomany.all().count())
-        self.assertEquals(1000, instance.manytomany.all()[0].integer)
-        self.assertEquals(1001, instance.manytomany.all()[1].integer)
+        objs = instance.manytomany.all().order_by('integer')
+        self.assertEquals(1000, objs[0].integer)
+        self.assertEquals(1001, objs[1].integer)
 
     def test_invalid_many_to_many_configuration(self):
         self.assertRaises(InvalidManyToManyConfigurationError, self.ddf.get, ModelWithRelationships, manytomany='a')
@@ -328,9 +339,10 @@ class ManyToManyRelationshipTest(DDFTestCase):
         b1 = self.ddf.get(ModelRelated, integer=1000)
         b2 = self.ddf.get(ModelRelated, integer=1001)
         instance = self.ddf.get(ModelWithRelationships, manytomany_through=[b1, b2])
-        self.assertEquals(2, instance.manytomany_through.all().count())
-        self.assertEquals(1000, instance.manytomany_through.all()[0].integer)
-        self.assertEquals(1001, instance.manytomany_through.all()[1].integer)
+        objs = instance.manytomany_through.all().order_by('integer')
+        self.assertEquals(2, objs.count())
+        self.assertEquals(1000, objs[0].integer)
+        self.assertEquals(1001, objs[1].integer)
 
 
 class NewDealWithCyclicDependenciesTest(DDFTestCase):
@@ -369,9 +381,10 @@ class NewDealWithInheritanceTest(DDFTestCase):
     def test_get_must_ignore_parent_link_attributes_but_the_parent_object_must_be_created(self):
         instance = self.ddf.get(ModelChildWithCustomParentLink)
         self.assertTrue(isinstance(instance.integer, int))
-        self.assertEquals(1, instance.my_custom_ref.id)
         self.assertEquals(1, ModelParent.objects.count())
         self.assertEquals(1, ModelChildWithCustomParentLink.objects.count())
+        self.assertNotEquals(None, instance.my_custom_ref.id)
+        self.assertNotEquals(None, instance.my_custom_ref.my_custom_ref_x.id)
 
     # TODO: need to check these tests. Here we are trying to simulate a bug with parent_link attribute
     def test_get_0(self):
@@ -410,6 +423,28 @@ class CustomFieldsTest(DDFTestCase):
     def test_new_field_that_double_inherits_django_field_must_be_supported(self):
         instance = self.ddf.new(ModelWithCustomFieldsMultipleInheritance)
         self.assertEquals(1, instance.x)
+
+
+class ComplexFieldsTest(DDFTestCase):
+    def test_x(self):
+        if django_greater_than('1.8'):
+            instance = self.ddf.new(ModelForUUID)
+            self.assertTrue(isinstance(instance.uuid, uuid.UUID))
+
+
+if settings.DDF_TEST_GEODJANGO:
+    class GeoDjangoFieldsTest(DDFTestCase):
+        def test_geodjango_fields(self):
+            if django_greater_than('1.7'):
+                instance = self.ddf.new(ModelForGeoDjango)
+                self.assertTrue(isinstance(instance.geometry, GEOSGeometry), msg=str(type(instance.geometry)))
+                self.assertTrue(isinstance(instance.point, Point))
+                self.assertTrue(isinstance(instance.line_string, LineString))
+                self.assertTrue(isinstance(instance.polygon, Polygon))
+                self.assertTrue(isinstance(instance.multi_point, MultiPoint))
+                self.assertTrue(isinstance(instance.multi_line_string, MultiLineString))
+                self.assertTrue(isinstance(instance.multi_polygon, MultiPolygon))
+                self.assertTrue(isinstance(instance.geometry_collection, GeometryCollection))
 
 
 class ModelValidatorsTest(DDFTestCase):
@@ -769,8 +804,7 @@ class ExceptionsLayoutMessagesTest(DDFTestCase):
             self.ddf.new(ModelWithUnsupportedField)
             self.fail()
         except UnsupportedFieldError as e:
-            self.assertEquals("""django_dynamic_fixture.models_test.ModelWithUnsupportedField.z""",
-                              str(e))
+            self.assertTrue("""django_dynamic_fixture.models_test.ModelWithUnsupportedField.z""" in str(e))
 
     def test_BadDataError(self):
         self.ddf = DynamicFixture(data_fixture, ignore_fields=['required', 'required_with_default'])
@@ -784,7 +818,9 @@ class ExceptionsLayoutMessagesTest(DDFTestCase):
             template1 = "('%s', IntegrityError('%s',))" % (model_msg, error_msg)
             template2 = "('%s', IntegrityError('%s',))" % (model_msg, error_msg2) # py34
             template3 = "('%s', IntegrityError(u'%s',))" % (model_msg, error_msg) # pypy
-            self.assertEquals(str(e) in [template1, template2, template3], True, msg=str(e))
+            template4 = "('%s', IntegrityError(u'%s',))" % (model_msg, error_msg2) # pypy
+            self.assertEquals(str(e) in [template1, template2, template3, template4], True, msg=str(e))
+
 
     def test_InvalidConfigurationError(self):
         try:
@@ -834,6 +870,10 @@ class PolymorphicModelTest(DDFTestCase):
     def test_create_polymorphic_model_2_and_retrieve(self):
         p = self.ddf.get(ModelPolymorphic2)
         self.assertEqual([p], list(ModelPolymorphic2.objects.all()))
+
+    def test_cannot_save(self):
+        with self.assertRaises(BadDataError):
+            self.ddf.get(ModelPolymorphic3)
 
 
 class AvoidNameCollisionTest(DDFTestCase):

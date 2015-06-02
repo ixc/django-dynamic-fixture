@@ -1,6 +1,47 @@
+from distutils.version import StrictVersion
+import django
+DJANGO_VERSION = django.get_version()[0:3]
 
 IMPORT_DDF_MODELS = True
 
+DDF_TEST_GEODJANGO = False
+
+# Postgres and PostGis
+# DATABASES = {
+#     'default': {
+#         # Postgis supports all Django features
+#         # createdb ddf
+#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': 'ddf',
+#         'USER': 'paulocheque', # please, change this if you want to run tests in your machine
+#         'PASSWORD': '',
+#         'HOST': 'localhost',
+#         'PORT': 5432,
+#     }
+# }
+# if StrictVersion(DJANGO_VERSION) >= StrictVersion('1.7'):
+#     # psql -d ddf -c "CREATE EXTENSION postgis;"
+#     # psql -d ddf -c "select postgis_lib_version();"
+#     DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+#     DDF_TEST_GEODJANGO = True
+
+# MySQL
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'ddf',
+#         'USER': 'paulocheque', # please, change this if you want to run tests in your machine
+#         'PASSWORD': '',
+#         'HOST': 'localhost',
+#         'PORT': 3306,
+#     }
+# }
+
+
+# SQlite and SpatialLite
+# brew install spatialite-tools
+# brew install gdal
+SPATIALITE_LIBRARY_PATH = '/usr/local/lib/mod_spatialite.dylib'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -10,7 +51,13 @@ DATABASES = {
 
 SECRET_KEY = 'ddf-secret-key'
 
-INSTALLED_APPS = (
+
+INSTALLED_APPS = ()
+
+if DDF_TEST_GEODJANGO:
+    INSTALLED_APPS += ('django.contrib.gis',)
+
+INSTALLED_APPS += (
     'queries',
     'django_coverage',
     'django_nose',

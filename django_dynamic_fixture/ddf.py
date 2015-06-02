@@ -7,7 +7,11 @@ import six
 
 from django.core.files import File
 from django.db.models import Field
-from django.utils.importlib import import_module
+
+try:
+    from importlib import import_module
+except ImportError:
+    from django.utils.importlib import import_module
 
 from django_dynamic_fixture.django_helper import get_related_model, \
     field_has_choices, field_has_default_value, get_fields_from_model, \
@@ -138,7 +142,7 @@ class DataFixture(object):
             if field.null:
                 data = None # a workaround for versatility
             else:
-                raise(UnsupportedFieldError(get_unique_field_name(field)))
+                raise(UnsupportedFieldError(get_unique_field_name(field) + ' (%s)' % (field_fullname)))
         return data
 
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from distutils.version import StrictVersion
 import django
+from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
+from django_dynamic_fixture.django_helper import django_greater_than
 
 from polymorphic import PolymorphicModel
 
@@ -57,7 +58,7 @@ class ModelWithDateTimes(models.Model):
         verbose_name = 'DateTimes'
 
 
-if StrictVersion(django.get_version()) > StrictVersion('1.6'):
+if django_greater_than('1.6'):
     class ModelWithBinary(models.Model):
         binary = models.BinaryField()
 
@@ -141,7 +142,8 @@ def default_fk_value():
     try:
         return ModelRelated.objects.get(id=1)
     except ModelRelated.DoesNotExist:
-        return None
+        ModelRelated.objects.create()
+        return ModelRelated.objects.all()[0]
 
 
 class ModelWithRelationships(models.Model):
@@ -346,6 +348,14 @@ class ModelPolymorphic2(ModelPolymorphic):
         verbose_name = 'Polymorphic Model 2'
 
 
+class ModelPolymorphic3(ModelPolymorphic):
+    class CannotSave(Exception):
+        pass
+
+    def save(self):
+        raise self.CannotSave
+
+
 class ModelForFieldPlugins(models.Model):
     # aaa = CustomDjangoField(null=False) # defined in settings.py
     # bbb = models.IntegerField(null=False)
@@ -358,8 +368,27 @@ class ModelWithCommonNames(models.Model):
     field = models.IntegerField(null=False)
 
 
+# GeoDjango requires Django 1.7+
+if django_greater_than('1.7') and settings.DDF_TEST_GEODJANGO:
+    from django.contrib.gis.db import models as geomodels
+    class ModelForGeoDjango(geomodels.Model):
+        geometry = geomodels.GeometryField()
+        point = geomodels.PointField()
+        line_string = geomodels.LineStringField()
+        polygon = geomodels.PolygonField()
+        multi_point = geomodels.MultiPointField()
+        multi_line_string = geomodels.MultiLineStringField()
+        multi_polygon = geomodels.MultiPolygonField()
+        geometry_collection = geomodels.GeometryCollectionField()
+
+
+if django_greater_than('1.8'):
+    class ModelForUUID(models.Model):
+        uuid = models.UUIDField()
+
+
 # jsonfield requires Django 1.4+
-if StrictVersion(django.get_version()) >= StrictVersion('1.4'):
+if django_greater_than('1.4'):
     try:
         from jsonfield import JSONField
         from jsonfield import JSONCharField
