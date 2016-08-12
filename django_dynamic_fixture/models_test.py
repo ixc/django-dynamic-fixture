@@ -8,7 +8,10 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django_dynamic_fixture.django_helper import django_greater_than
 
-from polymorphic import PolymorphicModel
+try:
+    from polymorphic.models import PolymorphicModel
+except ImportError:
+    from polymorphic import PolymorphicModel
 
 
 class EmptyModel(models.Model):

@@ -469,7 +469,10 @@ class DynamicFixture(object):
         if not is_model_class(instance):
             raise InvalidModelError(get_unique_model_name(model_class))
         try:
-            from polymorphic import PolymorphicModel
+            try:
+                from polymorphic.models import PolymorphicModel
+            except ImportError:
+                from polymorphic import PolymorphicModel
             is_polymorphic = isinstance(instance, PolymorphicModel)
         except ImportError:
             # Django-polymorphic is not installed so the model can't be polymorphic.
